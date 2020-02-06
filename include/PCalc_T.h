@@ -5,6 +5,7 @@
 #include <vector>
 #include <thread>
 #include <mutex>
+#include <queue>
 
 // Your implementation of PCalc_T class should go here. 
 // Make sure your constructor takes in two parameters:
@@ -25,10 +26,11 @@ class PCalc_T : public PCalc{
 
     private:
         int n_threads;
-        int workInt;
         int doneWork = 0;
         std::vector<std::thread> threadList;
         std::mutex workIntMutex;
+        std::queue<int> workQ;
+        
     };
 
 #endif
