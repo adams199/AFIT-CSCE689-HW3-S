@@ -27,7 +27,6 @@ class PCalc_T : public PCalc{
     private:
         unsigned int n_threads;
         unsigned int currentnThreads;
-        unsigned int currentMax;
         std::vector<std::thread> threadList;
         std::mutex workMutex;
     };
