@@ -5,7 +5,7 @@
 #include <mutex>
 
 
-PCalc_T::PCalc_T(unsigned int array_size, unsigned int num_threads) : PCalc(array_size), n_threads(num_threads){
+PCalc_T::PCalc_T(unsigned int array_size, unsigned int num_threads) : PCalc(array_size), n_threads(num_threads), currentnThreads(0), currentMax(2){
 };
 
 PCalc_T::~PCalc_T() {
@@ -14,22 +14,28 @@ PCalc_T::~PCalc_T() {
 
 void PCalc_T::markNonPrimes()
 {
-    this->spawnThreads();
     this->at(0) = false; this->at(1) = false;
 
     for (unsigned int i = 2; i*i <= this->array_size(); i++)
     {
+        while(true) // make sure its safe
+            if(this->workMutex.try_lock())
+                break;
+        unsigned int nowMax = this->currentMax; // need to wait till all threads passe this point
+        this->workMutex.unlock();
+
         if (this->at(i) == true)
         {
-            while(true) // make sure its safe
-                if(this->workIntMutex.try_lock())
-                    break;
-            this->workQ.push(i); // put the work on the queue
-            this->workIntMutex.unlock();
+            if(i <= nowMax && currentnThreads < n_threads) // make sure we can spawn one correctly
+            {
+                this->spawnThread(i);
+                this->currentnThreads++;
+            }
+            else
+                i--; //lets hold till we pass with max or a thread comes open
         }
     }
       
-    this->doneWork = -1;
     
     for (auto it = this->threadList.begin(); it != this->threadList.end(); it++)
         it->join(); // tell them to die
@@ -37,27 +43,20 @@ void PCalc_T::markNonPrimes()
 
 }
 
-void PCalc_T::spawnThreads()
+void PCalc_T::spawnThread(unsigned int work)
 {
-    auto primeLambda = [this]()
+    auto primeLambda = [this](unsigned int workNow)
     {
-        while(this->doneWork != -1 || !this->workQ.empty())
+        for (unsigned int p = workNow*workNow; p <= this->array_size(); p += workNow)
         {
-            if(!this->workQ.empty())
-            {
-                while(true) // make sure we're the only ones grabbing it
-                    if(this->workIntMutex.try_lock())
-                        break;
-                int workNow = this->workQ.front(); // grab the front of the queue
-                this->workQ.pop(); // pop off the value
-                this->workIntMutex.unlock();
-
-                for (int p = workNow*workNow; p <= this->array_size(); p += workNow)
-                    this->at(p) = false;  // do the work
-            }
+            this->at(p) = false;  // do the work
+            while(true) // make sure its safe
+                if(this->workMutex.try_lock())
+                    break;
+            this->currentMax = p; // need to wait till all threads pass this point
+            this->workMutex.unlock();
         }
+        this->currentnThreads--;
     };
-
-    for(int j = 0; j < this->n_threads-1; j++)
-        this->threadList.push_back(std::thread(primeLambda));
+    this->threadList.push_back(std::thread(primeLambda, work));
 }

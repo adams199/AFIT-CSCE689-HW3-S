@@ -22,15 +22,14 @@ class PCalc_T : public PCalc{
         ~PCalc_T();
 
         void markNonPrimes();
-        void spawnThreads();
+        void spawnThread(unsigned int work);
 
     private:
-        int n_threads;
-        int doneWork = 0;
+        unsigned int n_threads;
+        unsigned int currentnThreads;
+        unsigned int currentMax;
         std::vector<std::thread> threadList;
-        std::mutex workIntMutex;
-        std::queue<int> workQ;
-        
+        std::mutex workMutex;
     };
 
 #endif
