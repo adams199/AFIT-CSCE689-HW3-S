@@ -14,10 +14,7 @@ PCalc_T::~PCalc_T() {
 
 void PCalc_T::markNonPrimes()
 {
-    int optoList[30] = {0,1,2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97,101,103,107};
-    for(int z = 0; z < 30; z++)
-        this->at(optoList[z]) == false;
-
+    this->at(0) = false; this->at(1) = false; // 0 and 1 are not prime
 
     for (unsigned int i = 2; i*i <= this->array_size(); i++)
     {
@@ -25,8 +22,11 @@ void PCalc_T::markNonPrimes()
         {
             if(currentnThreads < n_threads)
             {
-                this->spawnThread(i);
+                this->workMutex.lock();
                 this->currentnThreads++;
+                this->workMutex.unlock(); // make sure nthreads isnt stepped on
+
+                this->spawnThread(i);
             }
             else
                 i--; //lets hold till a thread comes open
@@ -44,7 +44,11 @@ void PCalc_T::spawnThread(unsigned int work)
     {
         for (unsigned int p = workNow*workNow; p <= this->array_size(); p += workNow)
             this->at(p) = false;
+
+        this->workMutex.lock();
         this->currentnThreads--;
+        this->workMutex.unlock(); // make sure nthreads isnt stepped on
     };
-    this->threadList.push_back(std::thread(primeLambda, work));
+
+    this->threadList.push_back(std::thread(primeLambda, work)); // add it to our thread list
 }
