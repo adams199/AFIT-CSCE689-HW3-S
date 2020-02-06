@@ -2,6 +2,8 @@
 #define PCALC_T_H
 
 #include "PCalc.h"
+#include <vector>
+#include <thread>
 
 // Your implementation of PCalc_T class should go here. 
 // Make sure your constructor takes in two parameters:
@@ -18,10 +20,12 @@ class PCalc_T : public PCalc{
         ~PCalc_T();
 
         void markNonPrimes();
+        void spawnThreads();
 
     private:
         int n_threads;
-        
+        std::vector<int> workList; // why wont (n_threads, 0) constructor work
+        std::vector<std::thread> threadList;
     };
 
 #endif
