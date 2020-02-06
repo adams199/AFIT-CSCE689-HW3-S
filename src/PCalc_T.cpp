@@ -2,12 +2,10 @@
 #include <thread>
 #include <vector>
 #include <iostream>
+#include <mutex>
 
 
-PCalc_T::PCalc_T(unsigned int array_size, unsigned int num_threads) : PCalc(array_size), n_threads(num_threads)
-{
-    for(int i=0; i<num_threads; i++)
-        this->workList.push_back(0);
+PCalc_T::PCalc_T(unsigned int array_size, unsigned int num_threads) : PCalc(array_size), n_threads(num_threads), workInt(0){
 };
 
 PCalc_T::~PCalc_T() {
@@ -26,43 +24,49 @@ void PCalc_T::markNonPrimes()
             bool notAssigned = true;
             while(notAssigned)
             {   
-                for (auto it = this->workList.begin(); it != this->workList.end(); it++) // loop through until it finds a thread to assign
+                if (workInt == 0)
                 {
-                    if (*it == 0)
-                    {
-                        *it = i; // give it to a thread, except this doesn't update the value
-                        notAssigned = false;
-                        break;
-                    }
+                    while(true)
+                        if(this->workIntMutex.try_lock())
+                            break;
+                    workInt = i; // give it to a thread
+                    this->workIntMutex.unlock();
+                    notAssigned = false;
+                    break;
                 }
             }
         }
     }
-
-    for (int i = 0; i < n_threads; i++)
-        this->workList.at(i) = -1;
-    for (auto it = this->threadList.begin(); it != this->threadList.end(); it++)
-        it->join(); // tell them to die
     
+    this->doneWork = -1;
+    
+    for (auto it = this->threadList.begin(); it != this->threadList.end(); it++)
+        it->join(); // tell them to die, hangs here
+    
+
 }
 
 void PCalc_T::spawnThreads()
 {
     auto primeLambda = [this](int i)
     {
-        while(this->workList.at(i) != -1)
+        while(this->doneWork != -1)
         {
-            int workInt = this->workList.at(i);
-            if(workInt != 0)
-            {    
-                this->workList.at(i) = 0;
-                for (int p = workInt*workInt; p <= this->array_size(); p += workInt)
+            if(this->workInt != 0)
+            {   
+                int workNow = this->workInt;
+                while(true)
+                    if(this->workIntMutex.try_lock())
+                        break;
+                this->workInt = 0;
+                this->workIntMutex.unlock();
+                for (int p = workNow*workNow; p <= this->array_size(); p += workNow)
                     this->at(p) = false;
             }
         }
     };
 
-    for(int j = 0; j < this->n_threads; j++)
+    for(int j = 0; j < this->n_threads-1; j++)
         this->threadList.push_back(std::thread(primeLambda, j));
 }
 
